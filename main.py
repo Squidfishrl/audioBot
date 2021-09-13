@@ -58,8 +58,16 @@ def is_empty(queue):
 
     return count
 
+
+def helper_func():
+    playing = False
+
+    return None
+
+
 # create bot object with prefix !
 bot = commands.Bot(command_prefix='!')
+
 
 # set FFMPEG options
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
@@ -71,25 +79,20 @@ FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconne
 async def on_ready():
 
     voiceChannel = None
-    playing = False
 
     while True:
         
         await asyncio.sleep(2)
 
-        print(playing)
-        if is_empty(videoQueue) == False and playing == False:
-
+        if is_empty(videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
 
             try:
-                playing = True
                 vid = videoQueue.pop()
                 vc = vid.user.voice.channel
                 voiceChannel = await vc.connect()
-                playing = voiceChannel.play(vid.audio, lambda playing: False)
-            except discord.errors.ClientException:
-                playing = voiceChannel.play(vid.audio, lambda playing: False)
-
+                voiceChannel.play(vid.audio, after=helper_func())
+            except discord.errors.ClientException: # when bot is already connected
+                voiceChannel.play(vid.audio, after=helper_func())
 
 @bot.command()
 async def play(ctx, videoName):
@@ -144,6 +147,8 @@ async def showQueue(ctx):
         await ctx.send(str(i) + ": " + vid.title)
 
 
+# global var - if bot is playing a video
+playing = False
 # init a queue
 videoQueue = deque() # FIFO
 # fetch token
