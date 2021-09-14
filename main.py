@@ -89,7 +89,7 @@ async def on_ready():
         if is_empty(bot.videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
 
             # remove vid from queue
-            vid = bot.videoQueue.pop()
+            vid = bot.videoQueue.popleft() # q head is left
 
             try:
                 
@@ -109,20 +109,22 @@ async def on_ready():
                     
 #start playing video immediately (disregard current one)
 @bot.command()
-async def play(ctx, videoName):
+async def force(ctx, videoName):
 
-    # get vc of msg author
-    channel = ctx.author.voice.channel
-    vc = discord.utils.get(ctx.guild.voice_channels, name=channel.name)
-
-    # fetch video info
+    # get vid
     vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
     vid.user = ctx.author
-    bot.videoQueue.append(vid)
 
-    #join vc and play audio
-    voiceChannel = await vc.connect() 
-    voiceChannel.play(vid.audio, after=lambda: print('done'))
+    # add to queue on the left
+    bot.videoQueue.appendleft(vid)
+    if bot.inversedQueue:
+        bot.inversedQueue = False
+    else:
+        bot.inversedQueue = True
+
+    # skip current
+    if bot.currentPlaying is not None:
+        bot.currentPlaying.voiceChannel.stop()
 
 
 # Queue video - Waits for the videos qd before it to finish before playing
@@ -132,9 +134,8 @@ async def queue(ctx, videoName):
     vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
     vid.user = ctx.author
 
-    await ctx.send("Successfully queued!")
-
     bot.videoQueue.append(vid)
+    await ctx.send("Successfully queued!")
 
 
 # Stops playing the current vid
@@ -167,18 +168,24 @@ async def skip(ctx):
 
 @bot.command()
 async def showQueue(ctx):
-    await ctx.send("Video Queue: \n")
+
+    msg = ""
+
+    msg = ("Video Queue: \n")
     if bot.currentPlaying is not None:
-        await ctx.send("CURRENT: " + bot.currentPlaying.title + " " + bot.currentPlaying.duration)
+        msg += "CURRENT: " + bot.currentPlaying.title + " " + bot.currentPlaying.duration
     for i, vid in enumerate(bot.videoQueue):
-        await ctx.send(str(i+1) + ": " + vid.title + " " + vid.duration)
+        msg += "\n" + str(i+1) + ": " + vid.title + " " + vid.duration
 
 
-
+    if msg == "":
+        msg = "Video Queue is empty"
+    await ctx.send(msg)
 
 bot.currentPlaying = None
 # init a queue
 bot.videoQueue = deque() # FIFO
+bot.inversedQueue = False
 # fetch token
 token = read_token()
 # run bot
@@ -186,10 +193,12 @@ bot.run(token)
 
 # 14.09
 # DONE global var that contains info on the current playing video or is None if video isnt playing
-# TODO commands have a 2nd parameter -> channel in which the bot plays
+# DONE add skip command
+# DONE make play event overwrite current audio and rename to force 
+# TODO option to turn on unl parameters to then queue/force. Last parameter can specift channel
 # TODO only mod+ have access to play command
 # TODO embed msges
 # TODO progress tracking on showQueue
-# TODO skip and pause commands -> only mods+ can skip, pause has a timeout
+# TODO skip and pause commands perms -> only mods+/authors can skip, pause has a timeout
 # TODO current command -> shows info about currently playing video
 # TODO have a setting which saves the queue in a file and reads from there if the queue is empty, and u can create a playlist
