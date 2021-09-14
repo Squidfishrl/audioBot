@@ -69,12 +69,11 @@ def helper_func():
 # create bot object with prefix !
 bot = commands.Bot(command_prefix='!')
 
-
 # set FFMPEG options
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
 
 
-# constantly try to loop vids if there is any
+# constantly try to loop vids if there r any
 @bot.event
 async def on_ready():
 
@@ -89,21 +88,25 @@ async def on_ready():
 
         if is_empty(bot.videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
 
+            # remove vid from queue
+            vid = bot.videoQueue.pop()
+
             try:
-                # remove vid from queue
-                vid = bot.videoQueue.pop()
-                # get voice channel and connect
+                
                 vc = vid.user.voice.channel
                 voiceChannel = await vc.connect()
 
-                vid.voiceChannel = voiceChannel
                 bot.currentPlaying = vid
+                bot.currentPlaying.voiceChannel = voiceChannel
 
                 voiceChannel.play(vid.audio, after=lambda x: False) # TODO change to send a msg that its playing smth
             except discord.errors.ClientException: # when bot is already connected
+                bot.currentPlaying = vid
+                bot.currentPlaying.voiceChannel = voiceChannel
                 voiceChannel.play(vid.audio, after=lambda x: False)
 
-
+            
+                    
 #start playing video immediately (disregard current one)
 @bot.command()
 async def play(ctx, videoName):
@@ -128,20 +131,25 @@ async def queue(ctx, videoName):
     # fetch video info and store in queue
     vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
     vid.user = ctx.author
-    vid.ctx = ctx
 
-    # if is_empty(bot.videoQueue):
-    #     await ctx.send("Playing video!")
-    # else:
     await ctx.send("Successfully queued!")
 
     bot.videoQueue.append(vid)
 
 
+# Stops playing the current vid
 @bot.command()
 async def skip(ctx):
-    pass
+    if is_empty(bot.videoQueue):
+        await ctx.send("Video queue is already empty!")
+    else:
+        if bot.currentPlaying is None:
+            await ctx.send("Next vid hasnt started yet!")
+            return
 
+        bot.currentPlaying.voiceChannel.stop() # stop playing audio
+        await ctx.send("Skipped video!")
+            
 # Play the next song on the queue
 # @bot.command()
 # async def play_next(ctx):
@@ -159,12 +167,13 @@ async def skip(ctx):
 
 @bot.command()
 async def showQueue(ctx):
+    await ctx.send("Video Queue: \n")
     if bot.currentPlaying is not None:
-        await ctx.send("CURRENT: " + bot.currentPlaying.title)
+        await ctx.send("CURRENT: " + bot.currentPlaying.title + " " + bot.currentPlaying.duration)
     for i, vid in enumerate(bot.videoQueue):
-        await ctx.send(str(i+1) + ": " + vid.title)
+        await ctx.send(str(i+1) + ": " + vid.title + " " + vid.duration)
 
-# TODO: global var that contains info on the current playing video or is None if video isnt playing
+
 
 
 bot.currentPlaying = None
@@ -175,6 +184,8 @@ token = read_token()
 # run bot
 bot.run(token)
 
+# 14.09
+# DONE global var that contains info on the current playing video or is None if video isnt playing
 # TODO commands have a 2nd parameter -> channel in which the bot plays
 # TODO only mod+ have access to play command
 # TODO embed msges
