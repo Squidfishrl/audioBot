@@ -12,12 +12,13 @@ import asyncio
 
 class Video:
     def __init__(self, url, id, audio, duration, title, user=None):
-        self.urld = url
+        self.url = url
         self.id = id
         self.audio = audio
         self.user = user # user that requested the song
         self.duration = duration
         self.title = title
+        self.voiceChannel = None # vc that the bot is connected to
 
 
 def read_token(): 
@@ -73,8 +74,7 @@ bot = commands.Bot(command_prefix='!')
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
 
 
-#start playing video immediately (disregard current one)
-
+# constantly try to loop vids if there is any
 @bot.event
 async def on_ready():
 
@@ -82,18 +82,29 @@ async def on_ready():
 
     while True:
         
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
-        if is_empty(videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
+        if voiceChannel is not None and voiceChannel.is_playing() == False:
+            bot.currentPlaying = None
+
+        if is_empty(bot.videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
 
             try:
-                vid = videoQueue.pop()
+                # remove vid from queue
+                vid = bot.videoQueue.pop()
+                # get voice channel and connect
                 vc = vid.user.voice.channel
                 voiceChannel = await vc.connect()
-                voiceChannel.play(vid.audio, after=helper_func())
-            except discord.errors.ClientException: # when bot is already connected
-                voiceChannel.play(vid.audio, after=helper_func())
 
+                vid.voiceChannel = voiceChannel
+                bot.currentPlaying = vid
+
+                voiceChannel.play(vid.audio, after=lambda x: False) # TODO change to send a msg that its playing smth
+            except discord.errors.ClientException: # when bot is already connected
+                voiceChannel.play(vid.audio, after=lambda x: False)
+
+
+#start playing video immediately (disregard current one)
 @bot.command()
 async def play(ctx, videoName):
 
@@ -104,7 +115,7 @@ async def play(ctx, videoName):
     # fetch video info
     vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
     vid.user = ctx.author
-    videoQueue.append(vid)
+    bot.videoQueue.append(vid)
 
     #join vc and play audio
     voiceChannel = await vc.connect() 
@@ -119,17 +130,22 @@ async def queue(ctx, videoName):
     vid.user = ctx.author
     vid.ctx = ctx
 
-    if is_empty(videoQueue):
-        await ctx.send("Playing video!")
-    else:
-        await ctx.send("Successfully queued!")
+    # if is_empty(bot.videoQueue):
+    #     await ctx.send("Playing video!")
+    # else:
+    await ctx.send("Successfully queued!")
 
-    videoQueue.append(vid)
+    bot.videoQueue.append(vid)
+
+
+@bot.command()
+async def skip(ctx):
+    pass
 
 # Play the next song on the queue
 # @bot.command()
 # async def play_next(ctx):
-#     vid = videoQueue.pop()
+#     vid = bot.videoQueue.pop()
 #     play_video(vid)
 
 
@@ -143,14 +159,17 @@ async def queue(ctx, videoName):
 
 @bot.command()
 async def showQueue(ctx):
-    for i, vid in enumerate(videoQueue):
-        await ctx.send(str(i) + ": " + vid.title)
+    if bot.currentPlaying is not None:
+        await ctx.send("CURRENT: " + bot.currentPlaying.title)
+    for i, vid in enumerate(bot.videoQueue):
+        await ctx.send(str(i+1) + ": " + vid.title)
+
+# TODO: global var that contains info on the current playing video or is None if video isnt playing
 
 
-# global var - if bot is playing a video
-playing = False
+bot.currentPlaying = None
 # init a queue
-videoQueue = deque() # FIFO
+bot.videoQueue = deque() # FIFO
 # fetch token
 token = read_token()
 # run bot
@@ -162,3 +181,4 @@ bot.run(token)
 # TODO progress tracking on showQueue
 # TODO skip and pause commands -> only mods+ can skip, pause has a timeout
 # TODO current command -> shows info about currently playing video
+# TODO have a setting which saves the queue in a file and reads from there if the queue is empty, and u can create a playlist
