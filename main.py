@@ -8,8 +8,7 @@ import pafy
 # other
 from collections import deque
 import asyncio
-
-
+from datetime import datetime
 class Video:
     def __init__(self, url, id, audio, duration, title, user=None):
         self.url = url
@@ -19,6 +18,7 @@ class Video:
         self.duration = duration
         self.title = title
         self.voiceChannel = None # vc that the bot is connected to
+        self.startPlayTime = None # time of when song started playing
 
 
 def read_token(): 
@@ -107,6 +107,8 @@ async def on_ready():
                 bot.currentPlaying.voiceChannel = voiceChannel
                 voiceChannel.play(vid.audio, after=lambda x: False)
 
+            bot.currentPlaying.startPlayTime = datetime.now()
+
             
                     
 #start playing video immediately (disregard current one)
@@ -135,6 +137,8 @@ async def force(ctx, *, arg):
     # skip current
     if bot.currentPlaying is not None:
         bot.currentPlaying.voiceChannel.stop()
+
+    await ctx.send("Successfully forced!")
 
 
 # Queue video - Waits for the videos qd before it to finish before playing
@@ -201,6 +205,24 @@ async def unlParams(ctx):
     bot.unlimitedParameters = False if bot.unlimitedParameters else True
     await ctx.send("Unlimited parameters is now set to " + str(bot.unlimitedParameters))
 
+
+# show extra info on current playing song
+@bot.command()
+async def current(ctx):
+
+    if current is None:
+        await ctx.send("no song is playing atm (if there is a song queued it can take up to a second for it to start playing)")
+        return
+    
+    msg = ""
+    msg += bot.currentPlaying.url + "\n"
+    timePassed = str(datetime.now() - bot.currentPlaying.startPlayTime).split('.')[0]
+    msg += timePassed + "/" + bot.currentPlaying.duration
+
+    await ctx.send(msg)
+
+
+
 # init a queue
 bot.videoQueue = deque() # FIFO
 bot.currentPlaying = None # video info thats being played now
@@ -217,12 +239,12 @@ bot.run(token)
 # 14.09
 # DONE global var that contains info on the current playing video or is None if video isnt playing
 # DONE add skip command
-# DONE make play event overwrite current audio and rename to force 
+# DONE make play command overwrite current audio and rename to force 
 # 15.09
 # DONE option to turn on unl parameters to then queue/force.
-# TODO current command which shows extra info on current song
+# DONE current command which shows extra info on current song
 # TODO pause/resume command
-# TODO only mod+ have access to play command
+# TODO only mod+ have access to force command
 # TODO embed msges and more error msges
 # TODO progress tracking on showQueue
 # TODO skip and pause commands perms -> only mods+/authors can skip, pause has a timeout
