@@ -91,7 +91,7 @@ async def on_ready():
         if is_empty(bot.videoQueue) == False and (voiceChannel == None or (voiceChannel.is_playing() == False and voiceChannel.is_paused() == False)):
 
             # remove vid from queue
-            vid = bot.videoQueue.popleft() # q head is left
+            vid = bot.videoQueue.popleft() # q head is always left
 
             try:
                 
@@ -113,6 +113,7 @@ async def on_ready():
                     
 #start playing video immediately (disregard current one)
 @bot.command()
+@commands.has_guild_permissions(mute_members=True)
 async def force(ctx, *, arg):
 
     if bot.unlimitedParameters == False:
@@ -222,6 +223,7 @@ async def current(ctx):
     await ctx.send(msg)
 
 
+# pause audio if one is playing
 @bot.command()
 async def pause(ctx):
 
@@ -237,6 +239,7 @@ async def pause(ctx):
     await ctx.send("video paused!")    
 
 
+# resume audio if paused
 @bot.command()
 async def resume(ctx):
     if bot.currentPlaying is None:
@@ -271,10 +274,11 @@ bot.run(token)
 # 15.09
 # DONE option to turn on unl parameters to then queue/force.
 # DONE current command which shows extra info on current song
-# TODO pause/resume command
-# TODO only mod+ have access to force command
+# DONE pause/resume command
+# DONE req mute permissions to use !force command
 # TODO embed msges and more error msges
-# TODO progress tracking on showQueue
+# TODO progress tracking on showQueue and improved !currend (with %)
+# TODO idk if its possible but try to handle https request errors or atleast say a msg that one occured
 # TODO skip and pause commands perms -> only mods+/authors can skip, pause has a timeout
 # TODO save and load settings
 # TODO have a setting which saves the queue in a file and reads from there if the queue is empty, and u can create a playlist
