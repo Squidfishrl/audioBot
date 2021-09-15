@@ -3,7 +3,7 @@ import discord
 from discord import FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext import commands
 # yt modules
-from youtubesearchpython.__future__ import VideosSearch # async version of the library
+from youtubesearchpython.__future__ import CustomSearch, VideoSortOrder # async version of the library
 import pafy
 # other
 from collections import deque
@@ -38,9 +38,11 @@ def fetch_video(videoResult):
     duration = videoResult["result"][0]["duration"]
     title = videoResult["result"][0]["title"]
 
+    if duration == None:
+        return None
+
     # create a new pafy object
     song = pafy.new(id)
-
     # get audio source
     audio = song.getbestaudio()
 
@@ -109,18 +111,26 @@ async def on_ready():
                     
 #start playing video immediately (disregard current one)
 @bot.command()
-async def force(ctx, videoName):
+async def force(ctx, *, arg):
 
-    # get vid
-    vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
-    vid.user = ctx.author
-
-    # add to queue on the left
-    bot.videoQueue.appendleft(vid)
-    if bot.inversedQueue:
-        bot.inversedQueue = False
+    if bot.unlimitedParameters == False:
+        videoNames = []
+        videoNames.append(str(arg))
     else:
-        bot.inversedQueue = True
+        videoNames = arg.split(bot.paramSeparator)
+        print(type(videoNames))
+
+    for b, videoName in enumerate(videoNames):
+        b += 1
+        print(b)
+    # get vid
+
+        vid = fetch_video(await CustomSearch(videoNames[-b], VideoSortOrder.viewCount, limit = 1).next())
+
+        vid.user = ctx.author
+
+        # add to queue on the left
+        bot.videoQueue.appendleft(vid)
 
     # skip current
     if bot.currentPlaying is not None:
@@ -129,12 +139,25 @@ async def force(ctx, videoName):
 
 # Queue video - Waits for the videos qd before it to finish before playing
 @bot.command()
-async def queue(ctx, videoName):
-    # fetch video info and store in queue
-    vid = fetch_video(await VideosSearch(videoName, limit = 1).next())
-    vid.user = ctx.author
+async def queue(ctx, *, arg):
 
-    bot.videoQueue.append(vid)
+    if bot.unlimitedParameters == False:
+        videoNames = []
+        print(arg)
+        videoNames.append(str(arg))
+    else:
+        videoNames = arg.split(bot.paramSeparator)
+    
+
+    for videoName in videoNames:
+
+        # fetch video info and store in queue
+        vid = fetch_video(await CustomSearch(videoName, VideoSortOrder.viewCount, limit = 1).next())
+
+        vid.user = ctx.author
+
+        bot.videoQueue.append(vid)
+    
     await ctx.send("Successfully queued!")
 
 
@@ -149,23 +172,10 @@ async def skip(ctx):
             return
 
         bot.currentPlaying.voiceChannel.stop() # stop playing audio
-        await ctx.send("Skipped video!")
-            
-# Play the next song on the queue
-# @bot.command()
-# async def play_next(ctx):
-#     vid = bot.videoQueue.pop()
-#     play_video(vid)
+        await ctx.send("Skipped video!")        
 
 
-# async def play_video(ctx, vid):
-#     print("DEBUG")
-#     channel = vid.user.voice.channel
-#     vc = discord.utils.get(ctx.guild.voice_channels, name=channel.name)
-#     voiceChannel = await vc.connect()
-#     voiceChannel.play(vid.audio, after=lambda: print('done'))
-
-
+# Prints all Queued songs along current one
 @bot.command()
 async def showQueue(ctx):
 
@@ -182,10 +192,23 @@ async def showQueue(ctx):
         msg = "Video Queue is empty"
     await ctx.send(msg)
 
-bot.currentPlaying = None
+
+@bot.command()
+async def unlParams(ctx):
+    # allows you to pass multiple songs to queue in the same command
+    # example !queue "Song 1" "Song 2" "Song 3" #ChannelA
+    # if its off you can mostly do !queue "Song 1" #ChannelA
+    bot.unlimitedParameters = False if bot.unlimitedParameters else True
+    await ctx.send("Unlimited parameters is now set to " + str(bot.unlimitedParameters))
+
 # init a queue
 bot.videoQueue = deque() # FIFO
-bot.inversedQueue = False
+bot.currentPlaying = None # video info thats being played now
+
+# init global settings
+bot.unlimitedParameters = False
+bot.paramSeparator = ','
+
 # fetch token
 token = read_token()
 # run bot
@@ -195,10 +218,13 @@ bot.run(token)
 # DONE global var that contains info on the current playing video or is None if video isnt playing
 # DONE add skip command
 # DONE make play event overwrite current audio and rename to force 
-# TODO option to turn on unl parameters to then queue/force. Last parameter can specift channel
+# 15.09
+# DONE option to turn on unl parameters to then queue/force.
+# TODO current command which shows extra info on current song
+# TODO pause/resume command
 # TODO only mod+ have access to play command
-# TODO embed msges
+# TODO embed msges and more error msges
 # TODO progress tracking on showQueue
 # TODO skip and pause commands perms -> only mods+/authors can skip, pause has a timeout
-# TODO current command -> shows info about currently playing video
+# TODO save and load settings
 # TODO have a setting which saves the queue in a file and reads from there if the queue is empty, and u can create a playlist
