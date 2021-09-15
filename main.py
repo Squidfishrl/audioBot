@@ -85,10 +85,10 @@ async def on_ready():
         
         await asyncio.sleep(1)
 
-        if voiceChannel is not None and voiceChannel.is_playing() == False:
+        if voiceChannel is not None and voiceChannel.is_playing() == False and voiceChannel.is_paused() == False:
             bot.currentPlaying = None
 
-        if is_empty(bot.videoQueue) == False and (voiceChannel == None or voiceChannel.is_playing() == False):
+        if is_empty(bot.videoQueue) == False and (voiceChannel == None or (voiceChannel.is_playing() == False and voiceChannel.is_paused() == False)):
 
             # remove vid from queue
             vid = bot.videoQueue.popleft() # q head is left
@@ -211,7 +211,7 @@ async def unlParams(ctx):
 async def current(ctx):
 
     if current is None:
-        await ctx.send("no song is playing atm (if there is a song queued it can take up to a second for it to start playing)")
+        await ctx.send("no video is playing atm (if there is a song queued it can take up to a second for it to start playing)")
         return
     
     msg = ""
@@ -221,6 +221,34 @@ async def current(ctx):
 
     await ctx.send(msg)
 
+
+@bot.command()
+async def pause(ctx):
+
+    if bot.currentPlaying is None:
+        await ctx.send("No video playing atm")
+        return
+
+    if bot.currentPlaying.voiceChannel.is_paused():
+        await ctx.send("video already paused")
+        return
+
+    bot.currentPlaying.voiceChannel.pause()
+    await ctx.send("video paused!")    
+
+
+@bot.command()
+async def resume(ctx):
+    if bot.currentPlaying is None:
+        await ctx.send("No video playing atm")
+        return
+
+    if bot.currentPlaying.voiceChannel.is_paused() == False:
+        await ctx.send("video isnt paused")
+        return
+
+    bot.currentPlaying.voiceChannel.resume()
+    await ctx.send("video resumed!")    
 
 
 # init a queue
