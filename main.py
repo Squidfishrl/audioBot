@@ -6,6 +6,7 @@ from discord.ext import commands
 from youtubesearchpython.__future__ import CustomSearch, VideoSortOrder # async version of the library
 import pafy
 # other
+from embeds import *
 from collections import deque
 import asyncio
 from datetime import datetime
@@ -79,6 +80,36 @@ FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconne
 @bot.event
 async def on_ready():
 
+    embed = Embeds()
+    embed.add_main(
+        title="MusicBot is launched",
+        description="MusicBot has launched succesfully!",
+        titleURL="https://python.plainenglish.io/send-an-embedMsg-with-a-discord-bot-in-python-61d34c711046",
+        colour=EmbedColours().dark_red,
+        footer="Bot launch message",
+        thumbnailUrl="https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/HelloWorld.svg/1200px-HelloWorld.svg.png"
+    )
+    embed.add_author(
+        name="Squibble Wobble")
+
+    embed.add_field(
+        name="Elapse time",
+        value="0:00:00"
+    )
+
+    embed.add_field(
+        name="Time after launch",
+        value="0:00:00"
+    )
+
+    embed.add_field(
+        name="Passed",
+        value="0:00:00"
+    )
+
+    embed.create_embed()
+    channel = bot.get_channel(804486800688414760)
+    await channel.send(embed=embed.embed)
     voiceChannel = None
 
     while True:
