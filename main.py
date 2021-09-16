@@ -146,7 +146,7 @@ async def on_ready():
             embed.add_main(
                 title=bot.currentPlaying.title,
                 description=bot.currentPlaying.description,
-                titleURL=bot.currentPlaying.titleURL,
+                titleURL=bot.currentPlaying.url,
                 colour=EmbedColours().dark_red,
                 footer="Now playing",
                 thumbnailUrl=bot.currentPlaying.thumbnail
@@ -169,7 +169,7 @@ async def on_ready():
 
             embed.add_field(
                 name="Release date:",
-                value=bot.currentPlaying.publishedDate
+                value=bot.currentPlaying.publishTime
             )
 
             embed.create_embed()
