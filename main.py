@@ -10,16 +10,26 @@ from embeds import *
 from collections import deque
 import asyncio
 from datetime import datetime
+
 class Video:
-    def __init__(self, url, id, audio, duration, title, user=None):
+    def __init__(self, url, id, audio, duration, title, views, publishTime, thumbnail, channelName, channelLink, channelPfp, description=None, user=None):
         self.url = url
         self.id = id
         self.audio = audio
         self.user = user # user that requested the song
         self.duration = duration
         self.title = title
+        self.views = views
         self.voiceChannel = None # vc that the bot is connected to
+        self.description = description
+        self.publishTime = publishTime
+        self.thumbnail = thumbnail
         self.startPlayTime = None # time of when song started playing
+        self.channel = None # channel from which user queued the video
+        # channel related:
+        self.channelName = channelName
+        self.channelLink = channelLink
+        self.channelPfp = channelPfp
 
 
 def read_token(): 
@@ -34,10 +44,19 @@ def read_token():
 def fetch_video(videoResult):
 
     # fetch vid info
-    url = videoResult["result"][0]["link"]
-    id = videoResult["result"][0]["id"]
-    duration = videoResult["result"][0]["duration"]
-    title = videoResult["result"][0]["title"]
+    videoResult = videoResult["result"][0]
+    url = videoResult["link"]
+    id = videoResult["id"]
+    duration = videoResult["duration"]
+    title = videoResult["title"]
+    views = videoResult["viewCount"]["text"]
+    publishTime = videoResult["publishedTime"]
+    description = videoResult["descriptionSnippet"][0]["text"]
+    thumbnail = videoResult["thumbnails"][0]["url"]
+    # fetch vid creator info
+    creator = videoResult["channel"]["name"]
+    creatorLink = videoResult["channel"]["link"]
+    creatorPfp = videoResult["channel"]["thumbnails"][0]["url"]
 
     if duration == None:
         return None
@@ -50,7 +69,20 @@ def fetch_video(videoResult):
     #convert audio source to source that discord can use
     audio = FFmpegPCMAudio(audio.url, **FFMPEG_OPTIONS)
 
-    vid = Video(url, id, audio, duration, title)
+    vid = Video(
+        url=url, 
+        id=id,
+        audio=audio,
+        duration=duration,
+        title=title,
+        views=views,
+        publishTime=publishTime,
+        thumbnail=thumbnail,
+        channelName=creator,
+        channelLink=creatorLink,
+        channelPfp=creatorPfp,
+        description=description)
+
     return vid
 
 def is_empty(queue):
@@ -80,36 +112,6 @@ FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconne
 @bot.event
 async def on_ready():
 
-    embed = Embeds()
-    embed.add_main(
-        title="MusicBot is launched",
-        description="MusicBot has launched succesfully!",
-        titleURL="https://python.plainenglish.io/send-an-embedMsg-with-a-discord-bot-in-python-61d34c711046",
-        colour=EmbedColours().dark_red,
-        footer="Bot launch message",
-        thumbnailUrl="https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/HelloWorld.svg/1200px-HelloWorld.svg.png"
-    )
-    embed.add_author(
-        name="Squibble Wobble")
-
-    embed.add_field(
-        name="Elapse time",
-        value="0:00:00"
-    )
-
-    embed.add_field(
-        name="Time after launch",
-        value="0:00:00"
-    )
-
-    embed.add_field(
-        name="Passed",
-        value="0:00:00"
-    )
-
-    embed.create_embed()
-    channel = bot.get_channel(804486800688414760)
-    await channel.send(embed=embed.embed)
     voiceChannel = None
 
     while True:
@@ -123,7 +125,7 @@ async def on_ready():
 
             # remove vid from queue
             vid = bot.videoQueue.popleft() # q head is always left
-
+            print("Playing rn")
             try:
                 
                 vc = vid.user.voice.channel
@@ -140,7 +142,40 @@ async def on_ready():
 
             bot.currentPlaying.startPlayTime = datetime.now()
 
-            
+            embed = Embeds()
+            embed.add_main(
+                title=bot.currentPlaying.title,
+                description=bot.currentPlaying.description,
+                titleURL=bot.currentPlaying.titleURL,
+                colour=EmbedColours().dark_red,
+                footer="Now playing",
+                thumbnailUrl=bot.currentPlaying.thumbnail
+            )
+            embed.add_author(
+                name=bot.currentPlaying.channelName,
+                url=bot.currentPlaying.channelLink,
+                pfpUrl=bot.currentPlaying.channelPfp
+            )
+
+            embed.add_field(
+                name="Time Elapsed: ",
+                value="0:00:00"
+            )
+
+            embed.add_field(
+                name="Views:",
+                value=bot.currentPlaying.views
+            )
+
+            embed.add_field(
+                name="Release date:",
+                value=bot.currentPlaying.publishedDate
+            )
+
+            embed.create_embed()
+            await bot.currentPlaying.channel.send(embed=embed.embed)
+
+            print("Playing rn")
                     
 #start playing video immediately (disregard current one)
 @bot.command()
@@ -162,6 +197,7 @@ async def force(ctx, *, arg):
         vid = fetch_video(await CustomSearch(videoNames[-b], VideoSortOrder.viewCount, limit = 1).next())
 
         vid.user = ctx.author
+        vid.channel = ctx.channel
 
         # add to queue on the left
         bot.videoQueue.appendleft(vid)
@@ -191,9 +227,10 @@ async def queue(ctx, *, arg):
         vid = fetch_video(await CustomSearch(videoName, VideoSortOrder.viewCount, limit = 1).next())
 
         vid.user = ctx.author
+        vid.channel = ctx.channel
 
         bot.videoQueue.append(vid)
-    
+
     await ctx.send("Successfully queued!")
 
 
@@ -307,6 +344,7 @@ bot.run(token)
 # DONE current command which shows extra info on current song
 # DONE pause/resume command
 # DONE req mute permissions to use !force command
+# 16.09
 # TODO embed msges and more error msges
 # TODO progress tracking on showQueue and improved !currend (with %)
 # TODO idk if its possible but try to handle https request errors or atleast say a msg that one occured
