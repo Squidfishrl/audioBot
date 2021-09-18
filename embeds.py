@@ -33,6 +33,9 @@ class Embeds:
             else:
                 self.embed = discord.Embed(title=self.basicInfo.title, url=self.basicInfo.titleURL, description=self.basicInfo.description, footer=self.basicInfo.footer)
 
+            if self.basicInfo.footer != None:
+                self.embed.set_footer(text=self.basicInfo.footer)
+
             # add thumbnail
             if self.basicInfo.thumbnailUrl is not None:
                 self.embed.set_thumbnail(url=self.basicInfo.thumbnailUrl)
@@ -86,5 +89,5 @@ class EmbedColours:
 
     def __init__(self):
         self.dark_red = 10038562
-        self.blue = "colour code"
-        self.green = "colour code"
+        self.orange = 16728064
+        self.green = 51004
